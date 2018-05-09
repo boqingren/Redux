@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>React：context</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.14.3/react.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.14.3/react-dom.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.23/browser.min.js"></script>
+    <script type="text/babel">
+        window.onload = function () {
+            class App extends React.Component {
+                getChildContext () {
+                    return {color: this.props.color}
+                }
+                render () {
+                    return (
+                        <div>
+                            <p>React：context</p><hr/>
+                            <MessageList messages={this.props.messages}/>
+                        </div>
+                    )
+                }
+            }
+            App.childContextTypes = {
+                color: React.PropTypes.string.isRequired
+            }
+            class MessageList extends React.Component {
+                render () {
+                    return (
+                        <ul>
+                            {this.props.messages.map((messages, index) => <Message key={index} messages={messages}/>)}
+                        </ul>
+                    )
+                }
+            }
+            class Message extends React.Component {
+                render () {
+                    console.log('我是 Message 组件里打印的 context：', this.context);
+                    return (    // 通过 context 传递属性
+                        <li style={{color: this.context.color}}>{this.props.messages}</li>
+                    )
+                }
+            }
+            Message.contextTypes = {
+                color: React.PropTypes.string.isRequired
+            }
+
+            let messages = ['message 1', 'message 2', 'message 3'];
+            let color = 'red';
+            ReactDOM.render(<App messages={messages} color={color}/>,document.querySelector('#root')
+            );
+        }
+    </script>
+</head>
+
+<body>
+    <div id='root'></div>
+</body>
+
+</html>

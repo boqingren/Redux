@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>React + Redux (二)：store.subscribe(this.setState)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.14.3/react.js"></script>  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.14.3/react-dom.js"></script>  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.23/browser.min.js"></script>  
+    <script type="text/babel">
+        window.onload = function () {
+/* --------------------------------------------------------------------------------------------------------------------------------------------
+        <!--假设这里是 action.type 模块-->
+-------------------------------------------------------------------------------------------------------------------------------------------- */
+            const INCREASE = 'INCREASE';
+            const DECREASE = 'DECREASE';
+/* --------------------------------------------------------------------------------------------------------------------------------------------
+        <!--假设这里是 createStore 模块-->
+-------------------------------------------------------------------------------------------------------------------------------------------- */
+            const createStore = (reducer) => {
+                let state;                      // 在 createStore(reducer) 这个封闭的环境中声明一个叫作 state 的私有变量，state 是一个对象 (状态树)
+                let getState = () => state;     // getState 是 createStore(reducer) 这个函数 (闭包) 提供的一个用来获取私有变量 state 的一个对外接口
+
+                let listeners = [];             // listenners = [] 是一个用来存储监听函数 (即 listener) 的数组
+                let subscribe = (listener) => { // subscribe(listener) 方法用于向 listenners 这个数组 listenners = [] 中添加要订阅 (监听) 的函数，它的参数 listener 是函数
+                    listeners.push(listener);
+                    return () => {              // subscribe(listener) 方法执行后会返回一个取消订阅的函数，调用它可以取消订阅
+                        listeners = listeners.filter(l => listener != l); // 执行 (subscribe(listener))() 将从 listeners = [] 这个数组中移除要取消订阅的 listener
+                    }
+                }
+
+                let dispatch = (action) => {                    // dispatch 这个方法用于向 store 发起 action
+                    state = reducer(state, action);             // 调用 reducer 函数，把当前 [旧 state] 和由 dispatch 发起的 action 作为它的实参
+                    listeners.forEach(listener => listener());  // 遍历 listenners = [] 这个数组中的左右 listener 函数，并依次执行它们
+                }
+
+                dispatch();
+                console.log('执行 createStore 函数，并返回一个包含 getState、subscribe、dispatch 方法的对象');
+                return {                        // 通过执行 createStore(reducer) 这个函数获得的返回值是一个包含了 getState、subscribe、dispatch 方法的对象
+                    getState,                   // createStore(reducer) 的返回值是一个对象，这个对象有一个叫作 getState 的方法，可以访问 createStore 这个函数里的私有变量 state
+                    subscribe,                  // 订阅状态变化事件
+                    dispatch                    // 发起 action
+                }
+            }
+/* --------------------------------------------------------------------------------------------------------------------------------------------
+        <!--假设这里是 reducer 模块-->
+-------------------------------------------------------------------------------------------------------------------------------------------- */
+            let reducer = (state = {number: 0}, action) => {
+                if (action === undefined) return state;
+                switch (action.type) {
+                    case INCREASE:
+                        console.log('二 \t reducer \t==>\t case：INCREASE');
+                        return {number: state.number + action.amount};
+                    case DECREASE:
+                        console.log('二 \t reducer \t==>\t case：DECREASE');
+                        return {number: state.number - action.amount};
+                    default:
+                        console.log('二 \t reducer \t==>\t default');
+                        return state;
+                }
+            }
+/* --------------------------------------------------------------------------------------------------------------------------------------------
+        <!--假设这里是 store 模块-->
+-------------------------------------------------------------------------------------------------------------------------------------------- */
+            class Counter extends React.Component{
+
+                constructor (props) {
+                        super(props);
+                        this.state = {number: store.getState().number.toString()};
+                    }
+
+                componentWillMount () {
+                    this.unSubscribe = store.subscribe(() => {
+                        this.setState({
+                            number: store.getState().number.toString()
+                        });
+                    });
+                }
+
+                componentWillUnmount () {
+                    this.unSubscribe();
+                }
+
+                dispatchIncrease () {
+                    console.log('一 \t dispatch \t==>\t type: INCREASE');
+                    store.dispatch({type: INCREASE, amount: 3});
+                }
+
+                dispatchDecrease () {
+                    console.log('一 \t dispatch \t==>\t type: DECREASE');
+                    store.dispatch({type: DECREASE, amount: 2});
+                }
+
+                render () {
+                    return (
+                        <div>
+                            <p>React + Redux (二)：store.subscribe(this.setState)</p>
+                            <hr/>
+                            <span>{this.state.number}</span>
+                            <button onClick = {this.dispatchIncrease.bind(this)} style = {{margin: this.props.margin}}>+</button>
+                            <button onClick = {this.dispatchDecrease.bind(this)}>-</button>
+                        </div>
+                    )
+                }
+            }
+
+            let store = createStore(reducer);
+            ReactDOM.render(<Counter margin={'0 10px'}/>, document.querySelector('#root'));
+        }
+    </script>
+</head>
+
+<body>
+    <div id='root'></div>
+</body>
+
+</html>

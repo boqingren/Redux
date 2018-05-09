@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>React + Redux (四)：Todos 组件</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.14.3/react.js"></script>  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.14.3/react-dom.js"></script>  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.23/browser.min.js"></script>  
+    <script type="text/babel">
+        window.onload = function () {
+/* --------------------------------------------------------------------------------------------------------------------------------------------
+        <!--假设这里是 Action Type 模块-->
+-------------------------------------------------------------------------------------------------------------------------------------------- */
+            const INCREASE = 'INCREASE';
+            const DECREASE = 'DECREASE';
+            const ADD_TODO = 'ADD_TODO';
+            const DELETE_TODO = 'DELETE_TODO';
+
+/* --------------------------------------------------------------------------------------------------------------------------------------------
+        <!--假设这里是 Action Creators 模块-->
+-------------------------------------------------------------------------------------------------------------------------------------------- */
+            let increase = (amount) => {
+                console.log('一 \t dispatch \t==>\t type: INCREASE');
+                return {type: INCREASE, amount}
+            }
+
+            let decrease = (amount) => {
+                console.log('一 \t dispatch \t==>\t type: DECREASE');
+                return {type: DECREASE, amount}
+            }
+
+            let Add_ToDo = (text) => {
+                console.log('一 \t dispatch \t==>\t type: ADD_TODO');
+                return {type: ADD_TODO, text}
+            }
+
+            let Delete_ToDo = (index) => {
+                console.log('一 \t dispatch \t==>\t type: DELETE_TODO');
+                return {type: DELETE_TODO, index}
+            }
+
+/* --------------------------------------------------------------------------------------------------------------------------------------------
+        <!--假设这里是 createStore 模块-->
+-------------------------------------------------------------------------------------------------------------------------------------------- */
+            const createStore = (reducer) => {
+                let state;                      // 在 createStore(reducer) 这个封闭的环境中声明一个叫作 state 的私有变量，state 是一个对象 (状态树)
+                let getState = () => state;     // getState 是 createStore(reducer) 这个函数 (闭包) 提供的一个用来获取私有变量 state 的一个对外接口
+
+                let listeners = [];             // listenners = [] 是一个用来存储监听函数 (即 listener) 的数组
+                let subscribe = (listener) => { // subscribe(listener) 方法用于向 listenners 这个数组 listenners = [] 中添加要订阅 (监听) 的函数，它的参数 listener 是函数
+                    listeners.push(listener);
+                    return () => {              // subscribe(listener) 方法执行后会返回一个取消订阅的函数，调用它可以取消订阅
+                        listeners = listeners.filter(l => listener != l); // 执行 (subscribe(listener))() 将从 listeners = [] 这个数组中移除要取消订阅的 listener
+                    }
+                }
+
+                let dispatch = (action) => {                    // dispatch 这个方法用于向 store 发起 action
+                    state = reducer(state, action);             // 调用 reducer 函数，把当前 [旧 state] 和由 dispatch 发起的 action 作为它的实参
+                    listeners.forEach(listener => listener());  // 遍历 listenners = [] 这个数组中的左右 listener 函数，并依次执行它们
+                }
+
+                dispatch();
+                console.log('执行 createStore 函数，并返回一个包含 getState、subscribe、dispatch 方法的对象');
+                return {                        // 通过执行 createStore(reducer) 这个函数获得的返回值是一个包含了 getState、subscribe、dispatch 方法的对象
+                    getState,                   // createStore(reducer) 的返回值是一个对象，这个对象有一个叫作 getState 的方法，可以访问 createStore 这个函数里的私有变量 state
+                    subscribe,                  // 订阅状态变化事件
+                    dispatch                    // 发起 action
+                }
+            }
+/* --------------------------------------------------------------------------------------------------------------------------------------------
+        <!--假设这里是 reducers 模块-->
+-------------------------------------------------------------------------------------------------------------------------------------------- */
+
+            let counterReducer = (state, action) => {
+                switch (action.type) {
+                    case INCREASE:
+                        console.log('二 \t reducer \t==>\t case：INCREASE');
+                        return {number: state.number + action.amount};
+                    case DECREASE:
+                        console.log('二 \t reducer \t==>\t case：DECREASE');
+                        return {number: state.number - action.amount};
+                    default:
+                        console.log('二 \t reducer \t==>\t default by counterReducer');
+                        return state;
+                }
+            }
+
+            let toDoReducer = (state, action) => {
+                switch (action.type) {
+                    case ADD_TODO:
+                        console.log('二 \t reducer \t==>\t case：ADD_TODO');
+                        return {list: [...state.list, action.text]};
+                    case DELETE_TODO:
+                        console.log('二 \t reducer \t==>\t case：DELETE_TODO');
+                        let list = state.list;
+                        list.splice(action.index, 1);
+                        return {list: [...list]};
+                    default:
+                        console.log('二 \t reducer \t==>\t default by toDoReducer');
+                        return state;
+                }
+            }
+
+            let combineReducers = (reducers) => {
+                let initState = {
+                    counterReducer: {number: 0},
+                    toDoReducer: {list: []}
+                }
+                return (state = initState, action) => {
+                    let newState = {};
+                    if (action === undefined) return state;
+                    for (let key in reducers) {
+                        // 它这里的一个思想是在这个函数里轮番调用 {counterReducer, toDoReducer} 里面的两个函数，而这两个函数都是 reducer，
+                        // 管理着各自的 state。在这里通过调用 counterReducer 和 toDoReducer 将会返回它们各自的新的 state,
+                        // 然后把这两个函数调用后的返回值合并成一个新的 state，
+                        // 即 counterReducer(state[counterReducer], action)) 的返回值 + counterReducer(state[toDoReducer], action)) 的返回值。
+                        newState[key] = reducers[key](state[key], action);
+                    }
+                    return newState;
+                }
+            }
+
+/* --------------------------------------------------------------------------------------------------------------------------------------------
+        <!--假设这里是 store 模块-->
+-------------------------------------------------------------------------------------------------------------------------------------------- */
+            let reducer = combineReducers({counterReducer, toDoReducer});
+            let store = createStore(reducer);
+            console.log('在 createStore(reducer) 后首次获取 state：', store.getState());
+
+/* --------------------------------------------------------------------------------------------------------------------------------------------
+        <!--假设这里是 React 组件-->
+-------------------------------------------------------------------------------------------------------------------------------------------- */
+            class Counter extends React.Component{
+                constructor (props) {
+                    super(props);
+                    this.state = {number: store.getState().counterReducer.number.toString()};
+                }
+                componentWillMount () {
+                    this.unSubscribe = store.subscribe(() => {
+                        this.setState({
+                            number: store.getState().counterReducer.number.toString()
+                        });
+                    });
+                }
+                componentWillUnmount () {
+                    this.unSubscribe();
+                }
+                render () {
+                    return (
+                        <div>
+                            <p>Counter 组件</p><hr/>
+                            <span>{this.state.number}</span>
+                            <button onClick = {() => store.dispatch(increase(3))} style = {{margin: this.props.margin}}>+</button>
+                            <button onClick = {() => store.dispatch(decrease(2))}>-</button>
+                        </div>
+                    )
+                }
+            }
+
+            class ToDo extends React.Component{
+                constructor (props) {
+                        super(props);
+                        this.state = {list: store.getState().toDoReducer.list};
+                    }
+                componentWillMount () {
+                    this.unSubscribe = store.subscribe(() => {
+                        this.setState({
+                            list: store.getState().toDoReducer.list
+                        });
+                    });
+                }
+                componentWillUnmount () {
+                    this.unSubscribe();
+                }
+                handleKeyDown (event) {
+                    if (event.keyCode == 13 && event.target.value.length > 0) {
+                        store.dispatch(Add_ToDo(event.target.value));
+                        event.target.value = '';
+                    }
+                }
+                deleteToDo (index) {
+                    store.dispatch(Delete_ToDo(index));
+                }
+                render () {
+                    return (
+                        <div>
+                            <p>Todos 组件</p><hr/>
+                            <input type={'text'} onKeyDown={this.handleKeyDown.bind(this)}/>
+                            <ul>
+                                {
+                                    this.state.list.map((todo, index) => (
+                                        <li key={index}>
+                                            <button style={{margin: this.props.margin}} onClick={() => this.deleteToDo(index)}>-</button>
+                                            {todo}
+                                        </li>
+                                    ))
+                                }
+                            </ul>
+                        </div>
+                    )
+                }
+            }
+
+            ReactDOM.render(
+                <div>
+                    <p>React + Redux (五)：combineReducers</p><hr/><br/><br/><br/>
+                    <Counter margin={'0 10px'}/><br/>
+                    <ToDo margin={'0 10px 0 0'}/>
+                </div>,
+                document.querySelector('#root')
+            );
+        }
+    </script>
+</head>
+
+<body>
+    <div id='root'></div>
+</body>
+
+</html>
